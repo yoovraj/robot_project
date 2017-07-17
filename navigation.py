@@ -69,9 +69,9 @@ dst_coordinates = np.float32([[img_width/2 - dst_size, img_height - bottom_offse
                               [img_width/2 - dst_size, img_height - bottom_offset - 2*dst_size]])
 
 
-warped = perspect_transform(grid_img, src_coordinates, dst_coordinates)
+warped = perspect_transform(image, src_coordinates, dst_coordinates)
 plt.imshow(warped)
-scipy.misc.imsave('output/warped_example_grid1.jpg', warped)
+scipy.misc.imsave('output/warped_image.jpg', warped)
 
 
 
@@ -97,9 +97,50 @@ thresholded_image.nonzero()
 def rover_coords(binary_img):
     xpos, ypos = binary_img.nonzero()
     ## shift the image to rover view and rotate it by 90, so x' = y and y' = x
-    y_pixel = (xpos - binary_img.shape[1]/2).astype(np.float)
-    x_pixel = (ypos - binary_img.shape[0]).astype(np.float)
+    y_pixel =  - (xpos - binary_img.shape[1]/2).astype(np.int)
+    x_pixel =  - (ypos - binary_img.shape[0]).astype(np.int)
     return x_pixel, y_pixel
 
 xpix, ypix = rover_coords(thresholded_image)
 
+#### convert cartesian coordinates to polar coordinates
+def to_polar_coords(x_pixel, y_pixel):
+    dist = np.sqrt(x_pixel**2 + y_pixel**2)
+    angles = np.arctan2(y_pixel, x_pixel)
+    return dist, angles
+
+dist, angles = to_polar_coords(xpix, ypix)
+
+#### overall angle by which the rover should move
+mean_dir = np.mean(angles)
+
+### plotting all the figures
+fig = plt.figure(figsize=(12,9))
+plt.subplot(221)
+plt.imshow(image)
+
+plt.subplot(222)
+plt.imshow(warped)
+
+plt.subplot(223)
+plt.imshow(thresholded_image, cmap='gray')
+
+plt.subplot(224)
+plt.plot(xpix, ypix, '.')
+plt.ylim(-160, 160)
+plt.xlim(0, 160)
+arrow_length = 100
+x_arrow = arrow_length * np.cos(mean_dir)
+y_arrow = arrow_length * np.sin(mean_dir)
+plt.arrow(0, 0, x_arrow, y_arrow, color='red', zorder=2, head_width=10, width=2)
+
+
+target_pixels = np.column_stack((xpix,ypix, np.zeros([len(xpix)])))
+target_pixels = tuple(map(tuple,target_pixels))
+
+
+color_select = np.zeros_like(image[:,:,0])
+rgb_thresh=(160,160,160)
+# calculating locations which are above threshold of r/g/b
+above_thresh = (image[:,:,0] > rgb_thresh[0]) & (image[:,:,1] > rgb_thresh[1]) & (image[:,:,2] > rgb_thresh[2])
+above_thresh
